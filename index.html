@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ניהול תקציב זוגי</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js for Pie Chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts - Heebo -->
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Heebo', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            dark: '#0f172a',
+                            card: '#1e293b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Heebo', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen pb-24 selection:bg-emerald-500 selection:text-white">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-50 glass-card border-b border-slate-800 px-4 py-3 shadow-md">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg">
+                    <i data-lucide="heart-handshake" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold leading-tight">התקציב המשותף שלנו</h1>
+                    <p class="text-xs text-slate-400">ניהול פיננסי חכם לזוגות</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <!-- Year Selection Dropdown -->
+                <select id="year-select" onchange="changeYear(this.value)" class="bg-slate-800 text-emerald-400 border border-slate-700 font-bold text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-emerald-500">
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                    <option value="2027">2027</option>
+                    <option value="2028">2028</option>
+                </select>
+
+                <!-- Quick Actions -->
+                <button onclick="resetData()" title="איפוס נתונים" class="p-2 text-slate-400 hover:text-red-400 rounded-lg hover:bg-slate-800 transition">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-md mx-auto px-4 pt-4 space-y-5">
+
+        <!-- Month / View Selector Tab Bar -->
+        <div class="flex items-center gap-2 overflow-x-auto hide-scrollbar py-1">
+            <button onclick="switchTab('annual')" id="tab-annual" class="tab-btn shrink-0 px-4 py-2 rounded-xl font-medium text-xs transition-all bg-emerald-600 text-white shadow-lg shadow-emerald-900/30">
+                📊 סיכום שנתי <span id="label-selected-year">2026</span>
+            </button>
+            <div class="h-5 w-[1px] bg-slate-700 shrink-0"></div>
+            <!-- Month Buttons inserted dynamically -->
+            <div id="months-tabs" class="flex gap-2 shrink-0"></div>
+        </div>
+
+        <!-- Annual Summary View -->
+        <div id="view-annual" class="view-panel space-y-4">
+            <!-- KPI Cards Grid -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="glass-card p-4 rounded-2xl relative overflow-hidden">
+                    <div class="text-xs font-medium text-slate-400 mb-1">סך הכנסות לשנת <span class="year-text">2026</span></div>
+                    <div class="text-xl font-bold text-emerald-400" id="annual-income">₪0</div>
+                    <i data-lucide="trending-up" class="absolute left-3 bottom-3 w-8 h-8 text-emerald-500/10"></i>
+                </div>
+                <div class="glass-card p-4 rounded-2xl relative overflow-hidden">
+                    <div class="text-xs font-medium text-slate-400 mb-1">סך הוצאות לשנת <span class="year-text">2026</span></div>
+                    <div class="text-xl font-bold text-rose-400" id="annual-expenses">₪0</div>
+                    <i data-lucide="trending-down" class="absolute left-3 bottom-3 w-8 h-8 text-rose-500/10"></i>
+                </div>
+                <div class="glass-card p-4 rounded-2xl relative overflow-hidden col-span-2">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-medium text-slate-400">חיסכון מצטבר לשנת <span class="year-text">2026</span></span>
+                        <span class="text-xs text-emerald-400 font-semibold" id="annual-savings-rate">0% מההכנסה</span>
+                    </div>
+                    <div class="text-2xl font-black text-emerald-300" id="annual-savings">₪0</div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
+                        <div id="annual-savings-bar" class="bg-emerald-500 h-full w-0 transition-all duration-500"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pie Chart Card -->
+            <div class="glass-card p-4 rounded-2xl space-y-3">
+                <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                    <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-400"></i>
+                    התפלגות הוצאות שנתית (<span class="year-text">2026</span>)
+                </h3>
+                <div class="relative w-full aspect-square max-w-[240px] mx-auto">
+                    <canvas id="annualChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly View Container -->
+        <div id="view-monthly" class="view-panel space-y-4 hidden">
+            <!-- Monthly KPI Summary -->
+            <div class="grid grid-cols-3 gap-2">
+                <div class="glass-card p-3 rounded-xl text-center">
+                    <div class="text-[10px] text-slate-400 font-medium">הכנסות</div>
+                    <div class="text-sm font-bold text-emerald-400 mt-0.5" id="monthly-income">₪0</div>
+                </div>
+                <div class="glass-card p-3 rounded-xl text-center">
+                    <div class="text-[10px] text-slate-400 font-medium">הוצאות</div>
+                    <div class="text-sm font-bold text-rose-400 mt-0.5" id="monthly-expenses">₪0</div>
+                </div>
+                <div class="glass-card p-3 rounded-xl text-center">
+                    <div class="text-[10px] text-slate-400 font-medium">חיסכון</div>
+                    <div class="text-sm font-bold text-cyan-400 mt-0.5" id="monthly-savings">₪0</div>
+                </div>
+            </div>
+
+            <!-- Potential Savings Card -->
+            <div class="glass-card p-3.5 rounded-xl border-r-4 border-r-amber-500 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="piggy-bank" class="w-5 h-5 text-amber-400"></i>
+                    <div>
+                        <div class="text-xs font-bold text-slate-200">פוטנציאל חיסכון נוסף החודש</div>
+                        <div class="text-[10px] text-slate-400">ניתן לחסוך ע״י ייעול קטגוריות</div>
+                    </div>
+                </div>
+                <div class="text-sm font-black text-amber-400" id="monthly-potential">₪0</div>
+            </div>
+
+            <!-- Category Accordions / Budget Cards -->
+            <div id="categories-container" class="space-y-3">
+                <!-- Categories rendered dynamically -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Bottom Action Bar -->
+    <div class="fixed bottom-0 left-0 right-0 glass-card border-t border-slate-800 p-3 z-50">
+        <div class="max-w-md mx-auto flex gap-3">
+            <button onclick="openAddModal()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 transition text-sm">
+                <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                עדכון הוצאה / הכנסה
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal for Editing Values & Future Receipt Scan -->
+    <div id="edit-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+        <div class="glass-card bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-5 border-t sm:border border-slate-700 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                    <i data-lucide="edit-3" class="w-4 h-4 text-emerald-400"></i>
+                    <span id="modal-title">עדכון סעיף</span>
+                </h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Receipt Scanning Feature Preview Box -->
+            <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                        <i data-lucide="camera" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs font-bold text-slate-200">סריקת קבלה (פיצ'ר עתידי)</div>
+                        <div class="text-[10px] text-slate-400">סריקת קבלות והשוואת רשתות מוזלות</div>
+                    </div>
+                </div>
+                <button onclick="scanReceiptNotice()" class="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold text-xs rounded-lg transition">
+                    סרוק 📷
+                </button>
+            </div>
+
+            <form id="edit-form" onsubmit="saveItem(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">קטגוריה</label>
+                    <select id="modal-category" onchange="updateSubcatDropdown()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">סעיף / תת-קטגוריה</label>
+                    <select id="modal-subcategory" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">תקציב מתוכנן (₪)</label>
+                        <input type="number" id="modal-planned" step="any" min="0" placeholder="0" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">ביצוע בפועל (₪)</label>
+                        <input type="number" id="modal-actual" step="any" min="0" placeholder="0" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">יעד פוטנציאל חיסכון (₪)</label>
+                    <input type="number" id="modal-potential" step="any" min="0" placeholder="0" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition text-sm shadow-lg shadow-emerald-900/30">
+                        שמירת שינויים
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        const months = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+        
+        const categoriesDef = [
+            { id: "income", name: "הכנסות", icon: "wallet", color: "#22c55e", subcategories: ["משכורת בן זוג 1", "משכורת בן זוג 2", "הכנסה נוספת"] },
+            { id: "housing", name: "דיור וחשבונות קבועים", icon: "home", color: "#3b82f6", subcategories: ["שכר דירה", "ארנונה", "ועד בית", "חשמל", "מים", "גז", "אינטרנט וסלולר"] },
+            { id: "food", name: "מזון ומשק בית", icon: "shopping-bag", color: "#f59e0b", subcategories: ["סופרמרקט וקניות", "פארם וניקיון", "השלמות בקיוסק/מאפיה"] },
+            { id: "transport", name: "תחבורה ורכב", icon: "car", color: "#a855f7", subcategories: ["דלק / טעינה", "תחבורה ציבורית", "ביטוחים וטיפולים"] },
+            { id: "lifestyle", name: "לייפסטייל ובילויים", icon: "utensils", color: "#ec4899", subcategories: ["מסעדות ובתי קפה", "יציאות ופנאי", "קניות אישיות", "מתנות ואירועים"] },
+            { id: "savings", name: "חיסכון והשקעות", icon: "piggy-bank", color: "#06b6d4", subcategories: ["חיסכון משותף", "קרן חירום", "השקעות"] }
+        ];
+
+        // Current real-world context state initialization
+        const now = new Date();
+        let selectedYear = "2026"; // Current year default
+        let currentMonth = months[now.getMonth()] || "אוקטובר"; 
+        let activeTab = currentMonth; // Default directly to current month view
+        let budgetData = {};
+        let chartInstance = null;
+
+        function initData() {
+            const saved = localStorage.getItem('couple_budget_app_data_v2');
+            if (saved) {
+                try {
+                    budgetData = JSON.parse(saved);
+                } catch(e) {
+                    budgetData = createDefaultData();
+                }
+            } else {
+                budgetData = createDefaultData();
+            }
+
+            // Ensure current selected year structure exists
+            if (!budgetData[selectedYear]) {
+                budgetData[selectedYear] = createYearStructure();
+            }
+
+            document.getElementById('year-select').value = selectedYear;
+            updateYearLabels();
+        }
+
+        function createYearStructure() {
+            let yearObj = {};
+            months.forEach(m => {
+                yearObj[m] = {};
+                categoriesDef.forEach(cat => {
+                    yearObj[m][cat.id] = {};
+                    cat.subcategories.forEach(sub => {
+                        let defaultPlanned = 0, defaultActual = 0, defaultPotential = 0;
+
+                        if (cat.id === "income") {
+                            defaultPlanned = sub.includes("1") ? 11000 : (sub.includes("2") ? 10000 : 0);
+                            defaultActual = defaultPlanned;
+                        } else if (sub === "שכר דירה") { defaultPlanned = 5500; defaultActual = 5500; }
+                        else if (sub === "ארנונה") { defaultPlanned = 450; defaultActual = 450; }
+                        else if (sub === "חשמל") { defaultPlanned = 400; defaultActual = 380; defaultPotential = 40; }
+                        else if (sub === "סופרמרקט וקניות") { defaultPlanned = 2800; defaultActual = 2950; defaultPotential = 250; }
+                        else if (sub === "מסעדות ובתי קפה") { defaultPlanned = 1200; defaultActual = 1400; defaultPotential = 300; }
+                        else if (sub === "חיסכון משותף") { defaultPlanned = 3000; defaultActual = 3000; }
+
+                        yearObj[m][cat.id][sub] = { planned: defaultPlanned, actual: defaultActual, potential: defaultPotential };
+                    });
+                });
+            });
+            return yearObj;
+        }
+
+        function createDefaultData() {
+            let data = {};
+            ["2025", "2026", "2027", "2028"].forEach(yr => {
+                data[yr] = createYearStructure();
+            });
+            return data;
+        }
+
+        function saveData() {
+            localStorage.setItem('couple_budget_app_data_v2', JSON.stringify(budgetData));
+            render();
+        }
+
+        function resetData() {
+            if (confirm(`האם למחוק את השינויים ולהחזיר נתוני ברירת מחדל לשנת ${selectedYear}?`)) {
+                budgetData[selectedYear] = createYearStructure();
+                saveData();
+            }
+        }
+
+        function changeYear(newYear) {
+            selectedYear = newYear;
+            if (!budgetData[selectedYear]) {
+                budgetData[selectedYear] = createYearStructure();
+            }
+            updateYearLabels();
+            render();
+        }
+
+        function updateYearLabels() {
+            document.querySelectorAll('.year-text').forEach(el => el.innerText = selectedYear);
+            document.getElementById('label-selected-year').innerText = selectedYear;
+        }
+
+        function setupMonthTabs() {
+            const container = document.getElementById('months-tabs');
+            container.innerHTML = months.map(m => `
+                <button onclick="switchTab('${m}')" id="tab-${m}" class="tab-btn shrink-0 px-3.5 py-2 rounded-xl font-medium text-xs transition-all bg-slate-800 text-slate-300 hover:bg-slate-700">
+                    ${m}
+                </button>
+            `).join('');
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = "tab-btn shrink-0 px-3.5 py-2 rounded-xl font-medium text-xs transition-all bg-slate-800 text-slate-300 hover:bg-slate-700";
+            });
+
+            const activeBtn = document.getElementById(`tab-${tab}`);
+            if (activeBtn) {
+                activeBtn.className = "tab-btn shrink-0 px-4 py-2 rounded-xl font-medium text-xs transition-all bg-emerald-600 text-white shadow-lg shadow-emerald-900/30 font-bold";
+            }
+
+            if (tab === 'annual') {
+                document.getElementById('view-annual').classList.remove('hidden');
+                document.getElementById('view-monthly').classList.add('hidden');
+            } else {
+                currentMonth = tab;
+                document.getElementById('view-annual').classList.add('hidden');
+                document.getElementById('view-monthly').classList.remove('hidden');
+            }
+            render();
+        }
+
+        function render() {
+            if (activeTab === 'annual') {
+                renderAnnualView();
+            } else {
+                renderMonthlyView();
+            }
+            lucide.createIcons();
+        }
+
+        function renderAnnualView() {
+            const yearData = budgetData[selectedYear] || createYearStructure();
+            let totalIncome = 0;
+            let totalExpenses = 0;
+            let categoryTotals = {};
+
+            categoriesDef.forEach(cat => {
+                if (cat.id !== 'income') categoryTotals[cat.name] = 0;
+            });
+
+            months.forEach(m => {
+                categoriesDef.forEach(cat => {
+                    cat.subcategories.forEach(sub => {
+                        const val = yearData[m][cat.id][sub].actual || 0;
+                        if (cat.id === 'income') {
+                            totalIncome += val;
+                        } else {
+                            totalExpenses += val;
+                            categoryTotals[cat.name] += val;
+                        }
+                    });
+                });
+            });
+
+            const savings = totalIncome - totalExpenses;
+            const savingsRate = totalIncome > 0 ? Math.round((savings / totalIncome) * 100) : 0;
+
+            document.getElementById('annual-income').innerText = `₪${totalIncome.toLocaleString()}`;
+            document.getElementById('annual-expenses').innerText = `₪${totalExpenses.toLocaleString()}`;
+            document.getElementById('annual-savings').innerText = `₪${savings.toLocaleString()}`;
+            document.getElementById('annual-savings-rate').innerText = `${savingsRate}% מההכנסה`;
+            document.getElementById('annual-savings-bar').style.width = `${Math.max(0, Math.min(100, savingsRate))}%`;
+
+            renderPieChart(categoryTotals);
+        }
+
+        function renderPieChart(categoryTotals) {
+            const ctx = document.getElementById('annualChart').getContext('2d');
+            const labels = Object.keys(categoryTotals);
+            const data = Object.values(categoryTotals);
+            const colors = categoriesDef.filter(c => c.id !== 'income').map(c => c.color);
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#94a3b8',
+                                font: { family: 'Heebo', size: 11 },
+                                boxWidth: 12,
+                                padding: 10
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        function renderMonthlyView() {
+            const monthData = budgetData[selectedYear][currentMonth];
+            let totalIncome = 0;
+            let totalExpenses = 0;
+            let totalPotential = 0;
+
+            categoriesDef.forEach(cat => {
+                cat.subcategories.forEach(sub => {
+                    const item = monthData[cat.id][sub];
+                    if (cat.id === 'income') {
+                        totalIncome += item.actual || 0;
+                    } else {
+                        totalExpenses += item.actual || 0;
+                        totalPotential += item.potential || 0;
+                    }
+                });
+            });
+
+            const savings = totalIncome - totalExpenses;
+
+            document.getElementById('monthly-income').innerText = `₪${totalIncome.toLocaleString()}`;
+            document.getElementById('monthly-expenses').innerText = `₪${totalExpenses.toLocaleString()}`;
+            document.getElementById('monthly-savings').innerText = `₪${savings.toLocaleString()}`;
+            document.getElementById('monthly-potential').innerText = `₪${totalPotential.toLocaleString()}`;
+
+            const container = document.getElementById('categories-container');
+            container.innerHTML = categoriesDef.map(cat => {
+                let catActual = 0;
+                let catPlanned = 0;
+
+                cat.subcategories.forEach(sub => {
+                    const item = monthData[cat.id][sub];
+                    catActual += item.actual || 0;
+                    catPlanned += item.planned || 0;
+                });
+
+                const isIncome = cat.id === 'income';
+                const statusColor = isIncome ? 'text-emerald-400' : (catActual > catPlanned ? 'text-rose-400' : 'text-slate-300');
+
+                return `
+                    <div class="glass-card rounded-2xl overflow-hidden transition-all border border-slate-800">
+                        <div class="p-4 flex justify-between items-center cursor-pointer hover:bg-slate-800/50" onclick="toggleCategory('${cat.id}')">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white" style="background-color: ${cat.color}20; color: ${cat.color}">
+                                    <i data-lucide="${cat.icon}" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-bold text-slate-100">${cat.name}</div>
+                                    <div class="text-[11px] text-slate-400">תקציב: ₪${catPlanned.toLocaleString()}</div>
+                                </div>
+                            </div>
+                            <div class="text-left">
+                                <div class="text-sm font-black ${statusColor}">₪${catActual.toLocaleString()}</div>
+                                <i data-lucide="chevron-down" id="arrow-${cat.id}" class="w-4 h-4 text-slate-500 transition-transform mt-0.5 ml-auto"></i>
+                            </div>
+                        </div>
+
+                        <div id="cat-body-${cat.id}" class="hidden border-t border-slate-800/80 bg-slate-900/40 p-3 space-y-2">
+                            ${cat.subcategories.map(sub => {
+                                const item = monthData[cat.id][sub];
+                                return `
+                                    <div class="flex justify-between items-center p-2.5 rounded-xl bg-slate-800/40 hover:bg-slate-800/80 text-xs">
+                                        <div>
+                                            <div class="font-semibold text-slate-200">${sub}</div>
+                                            <div class="text-[10px] text-slate-400">מתוכנן: ₪${(item.planned || 0).toLocaleString()} ${item.potential ? `| פוטנציאל: ₪${item.potential}` : ''}</div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold text-slate-100">₪${(item.actual || 0).toLocaleString()}</span>
+                                            <button onclick="openModalFor('${cat.id}', '${sub}')" class="p-1.5 text-slate-400 hover:text-emerald-400 rounded-lg hover:bg-slate-700">
+                                                <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleCategory(catId) {
+            const body = document.getElementById(`cat-body-${catId}`);
+            const arrow = document.getElementById(`arrow-${catId}`);
+            if (body.classList.contains('hidden')) {
+                body.classList.remove('hidden');
+                arrow.style.transform = 'rotate(180deg)';
+            } else {
+                body.classList.add('hidden');
+                arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function openAddModal() {
+            const defaultCat = categoriesDef[1].id;
+            const defaultSub = categoriesDef[1].subcategories[0];
+            openModalFor(defaultCat, defaultSub);
+        }
+
+        function openModalFor(catId, subName) {
+            const catSelect = document.getElementById('modal-category');
+            catSelect.innerHTML = categoriesDef.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            catSelect.value = catId;
+
+            updateSubcatDropdown();
+            document.getElementById('modal-subcategory').value = subName;
+
+            const month = activeTab === 'annual' ? currentMonth : activeTab;
+            const item = budgetData[selectedYear][month][catId][subName] || { planned: 0, actual: 0, potential: 0 };
+
+            document.getElementById('modal-planned').value = item.planned || 0;
+            document.getElementById('modal-actual').value = item.actual || 0;
+            document.getElementById('modal-potential').value = item.potential || 0;
+
+            document.getElementById('modal-title').innerText = `${subName} (${month} ${selectedYear})`;
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+
+        function updateSubcatDropdown() {
+            const catId = document.getElementById('modal-category').value;
+            const cat = categoriesDef.find(c => c.id === catId);
+            const subSelect = document.getElementById('modal-subcategory');
+            subSelect.innerHTML = cat.subcategories.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+
+        function closeModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        function saveItem(e) {
+            e.preventDefault();
+            const catId = document.getElementById('modal-category').value;
+            const subName = document.getElementById('modal-subcategory').value;
+            const planned = parseFloat(document.getElementById('modal-planned').value) || 0;
+            const actual = parseFloat(document.getElementById('modal-actual').value) || 0;
+            const potential = parseFloat(document.getElementById('modal-potential').value) || 0;
+
+            const month = activeTab === 'annual' ? currentMonth : activeTab;
+            
+            budgetData[selectedYear][month][catId][subName] = { planned, actual, potential };
+            saveData();
+            closeModal();
+        }
+
+        function scanReceiptNotice() {
+            alert("תכונת סריקת קבלות מוכנה לחיבור! בהמשך נוכל לחבר אותה ל-AI לסריקה אוטומטית והשוואת מחירי רשתות סופרמרקט.");
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initData();
+            setupMonthTabs();
+            switchTab(currentMonth);
+        });
+    </script>
+</body>
+</html>
